@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UberProfit | 配達員の判断力を数値化する</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#0a0a18;
+      --bg2:#0f0f24;
+      --panel:rgba(255,255,255,.04);
+      --panel2:rgba(255,255,255,.05);
+      --line:rgba(255,255,255,.07);
+      --line2:rgba(255,255,255,.1);
+      --text:#e0e0ff;
+      --muted:#6060a0;
+      --muted2:#3a3a7a;
+      --green:#00e87a;
+      --red:#ff3d5a;
+      --yellow:#ffcc44;
+      --blue:#1da1f2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: linear-gradient(170deg, var(--bg1) 0%, var(--bg2) 100%);
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      min-height: 100%;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 28px 28px;
+      z-index:0;
+    }
+
+    .app{
+      position:relative;
+      z-index:1;
+      max-width:480px;
+      min-height:100vh;
+      margin:0 auto;
+      padding-bottom:78px;
+    }
+
+    .header{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background:rgba(10,10,24,.92);
+      backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--line);
+      padding:14px 20px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .brand{
+      font-family:'Bebas Neue', sans-serif;
+      font-size:1.7rem;
+      letter-spacing:.1em;
+      line-height:1;
+    }
+
+    .brand span{ color:var(--green); }
+
+    .subbrand{
+      font-size:.62rem;
+      color:var(--muted);
+      letter-spacing:.14em;
+      margin-top:2px;
+    }
+
+    .header-buttons{
+      display:flex;
+      gap:8px;
+    }
+
+    .icon-btn{
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      color:#8888cc;
+      border-radius:9px;
+      padding:7px 12px;
+      cursor:pointer;
+      font-size:.9rem;
+    }
+
+    .icon-btn.active{
+      background:rgba(0,232,122,.15);
+      border-color:#00e87a44;
+      color:var(--green);
+    }
+
+    .content{
+      padding:16px 16px 48px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:16px;
+    }
+
+    .section-label{
+      font-size:.65rem;
+      color:var(--muted);
+      letter-spacing:.15em;
+      margin-bottom:10px;
+    }
+
+    .verdict-wrap{
+      border-radius:24px;
+      padding:28px 0 20px;
+      text-align:center;
+      position:relative;
+      transition:.25s ease;
+    }
+
+    .verdict-badge{
+      display:inline-block;
+      color:#0a0a18;
+      font-family:'Bebas Neue', sans-serif;
+      font-size:clamp(4rem, 18vw, 7rem);
+      line-height:1;
+      letter-spacing:.06em;
+      padding:4px 40px 8px;
+      border-radius:18px;
+      transition:.25s ease;
+      animation: popIn .35s cubic-bezier(.34,1.56,.64,1);
+    }
+
+    .verdict-icon{
+      font-size:2rem;
+      margin-top:8px;
+    }
+
+    @keyframes popIn{
+      0%{ transform:scale(.6); opacity:0; }
+      100%{ transform:scale(1); opacity:1; }
+    }
+
+    .stats{
+      display:flex;
+      gap:10px;
+    }
+
+    .stat{
+      flex:1;
+      background:var(--panel2);
+      border:1px solid var(--line2);
+      border-radius:16px;
+      padding:18px 14px;
+      text-align:center;
+    }
+
+    .stat-label{
+      font-size:.62rem;
+      color:var(--muted);
+      letter-spacing:.12em;
+      margin-bottom:6px;
+    }
+
+    .stat-value{
+      font-family:'Bebas Neue', sans-serif;
+      font-size:clamp(1.9rem, 9vw, 2.8rem);
+      line-height:1;
+      letter-spacing:.04em;
+    }
+
+    .stat-sub{
+      font-size:.62rem;
+      color:var(--muted2);
+      margin-top:4px;
+    }
+
+    .alert{
+      background:rgba(255,200,0,.1);
+      border:1px solid rgba(255,200,0,.3);
+      border-radius:10px;
+      padding:8px 14px;
+      font-size:.78rem;
+      color:var(--yellow);
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .grid-2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+    }
+
+    .input-box label{
+      display:block;
+      font-size:.65rem;
+      color:var(--muted);
+      letter-spacing:.12em;
+      margin-bottom:4px;
+    }
+
+    .input-row{
+      display:flex;
+      align-items:baseline;
+      gap:6px;
+    }
+
+    .input-box input{
+      flex:1;
+      background:transparent;
+      border:none;
+      border-bottom:2px solid #2a2a4a;
+      color:#fff;
+      font-size:1.25rem;
+      font-weight:700;
+      padding:6px 2px;
+      outline:none;
+      font-family:'Noto Sans JP', sans-serif;
+    }
+
+    .input-box input:focus{
+      border-bottom-color:var(--green);
+    }
+
+    .unit{
+      color:var(--muted2);
+      font-size:.8rem;
+    }
+
+    .vehicle-buttons{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .vehicle-btn{
+      padding:7px 12px;
+      border-radius:10px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+      color:var(--muted);
+      font-size:.78rem;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+
+    .vehicle-btn.active{
+      background:rgba(0,232,122,.15);
+      border-color:var(--green);
+      color:var(--green);
+    }
+
+    .vehicle-btn small{
+      color:var(--muted2);
+      font-size:.65rem;
+      margin-left:4px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+    }
+
+    .primary-btn, .x-btn, .danger-small{
+      border-radius:12px;
+      padding:13px;
+      font-size:.85rem;
+      font-weight:700;
+      cursor:pointer;
+      text-decoration:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid transparent;
+    }
+
+    .primary-btn{
+      flex:1;
+      background:rgba(0,232,122,.15);
+      border-color:#00e87a33;
+      color:var(--green);
+    }
+
+    .primary-btn.disabled{
+      background:rgba(255,255,255,.04);
+      border-color:var(--line);
+      color:var(--muted2);
+      cursor:not-allowed;
+    }
+
+    .x-btn{
+      flex:1;
+      background:rgba(29,161,242,.15);
+      border-color:#1da1f233;
+      color:var(--blue);
+    }
+
+    .x-btn.disabled{
+      background:rgba(255,255,255,.04);
+      border-color:var(--line);
+      color:var(--muted2);
+      pointer-events:none;
+    }
+
+    .note{
+      font-size:.6rem;
+      color:#2a2a5a;
+      text-align:center;
+      padding:0 8px 8px;
+    }
+
+    .settings-title, .history-title{
+      font-family:'Bebas Neue', sans-serif;
+      font-size:1.6rem;
+      letter-spacing:.1em;
+    }
+
+    .slider-val{
+      font-size:1.6rem;
+      font-family:'Bebas Neue', sans-serif;
+      color:var(--green);
+      margin-bottom:10px;
+    }
+
+    input[type=range]{
+      -webkit-appearance:none;
+      width:100%;
+      height:4px;
+      border-radius:2px;
+      background:#1e1e40;
+      outline:none;
+      accent-color:var(--green);
+    }
+
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      width:22px;
+      height:22px;
+      border-radius:50%;
+      background:var(--green);
+      cursor:pointer;
+    }
+
+    .range-minmax{
+      display:flex;
+      justify-content:space-between;
+      font-size:.6rem;
+      color:var(--muted2);
+    }
+
+    .history-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .danger-small{
+      background:rgba(255,61,90,.1);
+      border:1px solid #ff3d5a33;
+      color:var(--red);
+      padding:5px 12px;
+      font-size:.7rem;
+      border-radius:8px;
+    }
+
+    .history-empty{
+      text-align:center;
+      color:var(--muted2);
+      padding:48px 0;
+      font-size:.85rem;
+    }
+
+    .history-item{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:14px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .history-verdict{
+      font-family:'Bebas Neue', sans-serif;
+      font-size:1.6rem;
+      width:60px;
+      flex-shrink:0;
+    }
+
+    .history-profit{
+      font-size:1rem;
+      font-weight:700;
+    }
+
+    .history-sub{
+      font-size:.7rem;
+      color:var(--muted2);
+      margin-top:2px;
+    }
+
+    .history-right{
+      text-align:right;
+    }
+
+    .history-vehicle{
+      font-size:1.2rem;
+    }
+
+    .history-time{
+      font-size:.65rem;
+      color:var(--muted2);
+    }
+
+    .bottom-nav{
+      position:fixed;
+      bottom:0;
+      left:50%;
+      transform:translateX(-50%);
+      width:100%;
+      max-width:480px;
+      background:rgba(10,10,24,.96);
+      backdrop-filter:blur(16px);
+      border-top:1px solid var(--line);
+      display:flex;
+      z-index:15;
+    }
+
+    .tab-btn{
+      flex:1;
+      padding:12px 0 10px;
+      background:transparent;
+      border:none;
+      color:var(--muted2);
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:2px;
+      transition:color .2s ease;
+    }
+
+    .tab-btn.active{
+      color:var(--green);
+    }
+
+    .tab-btn span:first-child{
+      font-size:1.2rem;
+    }
+
+    .tab-btn span:last-child{
+      font-size:.6rem;
+      letter-spacing:.08em;
+    }
+
+    .hidden{ display:none !important; }
+
+    ::-webkit-scrollbar { width: 0; }
+
+    @media (max-width:380px){
+      .grid-2{ grid-template-columns:1fr; }
+      .stats{ flex-direction:column; }
+      .actions{ flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="brand">UBER<span>PROFIT</span></div>
+        <div class="subbrand">配達員の判断力を数値化する</div>
+      </div>
+      <div class="header-buttons">
+        <button class="icon-btn" id="header-history">📋</button>
+        <button class="icon-btn" id="header-settings">⚙</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- MAIN -->
+      <section id="page-main">
+        <div class="verdict-wrap" id="verdictWrap">
+          <div class="verdict-badge" id="verdictBadge">—</div>
+          <div class="verdict-icon" id="verdictIcon">⚫</div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">⏱ 時給</div>
+            <div class="stat-value" id="hourlyValue">—</div>
+            <div class="stat-sub" id="hourlySub">時間を入力</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">💴 純利益</div>
+            <div class="stat-value" id="profitValue">—</div>
+            <div class="stat-sub" id="profitSub">数値を入力</div>
+          </div>
+        </div>
+
+        <div id="alertsBox"></div>
+
+        <div class="card">
+          <div class="section-label">📋 案件情報</div>
+          <div class="grid-2">
+            <div class="input-box">
+              <label>報酬</label>
+              <div class="input-row">
+                <input id="reward" type="number" inputmode="decimal" placeholder="580">
+                <span class="unit">円</span>
+              </div>
+            </div>
+            <div class="input-box">
+              <label>距離</label>
+              <div class="input-row">
+                <input id="distance" type="number" inputmode="decimal" placeholder="3.5">
+                <span class="unit">km</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-box" style="margin-top:18px;">
+            <label>所要時間（任意）</label>
+            <div class="input-row">
+              <input id="timeMin" type="number" inputmode="decimal" placeholder="25">
+              <span class="unit">分</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">🏍️ 車種</div>
+          <div class="vehicle-buttons" id="vehicleButtons"></div>
+
+          <div class="input-box hidden" id="customFuelWrap" style="margin-top:12px;">
+            <label>カスタム燃費</label>
+            <div class="input-row">
+              <input id="customFuel" type="number" inputmode="decimal" placeholder="30">
+              <span class="unit">km/L</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary-btn" id="saveHistoryBtn">📋 履歴保存</button>
+          <a class="x-btn" id="shareBtn" href="#" target="_blank" rel="noopener noreferrer">𝕏 シェア</a>
+        </div>
+
+        <p class="note">※ 本アプリは収益を保証するものではありません</p>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="page-settings" class="hidden">
+        <div class="settings-title">⚙ 設定</div>
+
+        <div class="card">
+          <div style="font-size:.7rem; color:var(--muted); margin-bottom:8px;">⛽ ガソリン単価 (円/L)</div>
+          <div class="slider-val" id="gasPriceVal">¥175</div>
+          <input type="range" min="100" max="250" step="1" id="gasPriceRange">
+          <div class="range-minmax"><span>¥100</span><span>¥250</span></div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:.7rem; color:var(--muted); margin-bottom:8px;">⏱ 最低時給ライン (円)</div>
+          <div class="slider-val" id="minWageVal">¥1000</div>
+          <input type="range" min="500" max="3000" step="50" id="minWageRange">
+          <div class="range-minmax"><span>¥500</span><span>¥3000</span></div>
+        </div>
+
+        <div style="font-size:.7rem; color:var(--muted2); line-height:1.7; padding:0 4px;">
+          設定値はアプリ再起動後も保持されます。
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section id="page-history" class="hidden">
+        <div class="history-top">
+          <div class="history-title">📋 履歴</div>
+          <button class="danger-small hidden" id="clearHistoryBtn">クリア</button>
+        </div>
+        <div id="historyList"></div>
+      </section>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="tab-btn active" data-page="main">
+        <span>⚡</span><span>判定</span>
+      </button>
+      <button class="tab-btn" data-page="history">
+        <span>📋</span><span>履歴</span>
+      </button>
+      <button class="tab-btn" data-page="settings">
+        <span>⚙</span><span>設定</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const VEHICLE_PRESETS = [
+      { id: "scooter50", label: "原付", fuel: 40, icon: "🛵" },
+      { id: "under125", label: "〜125cc", fuel: 45, icon: "🏍️" },
+      { id: "kei", label: "軽バン", fuel: 15, icon: "🚐" },
+      { id: "bicycle", label: "自転車", fuel: 0, icon: "🚲" },
+      { id: "custom", label: "カスタム", fuel: null, icon: "✏️" },
+    ];
+
+    const STORAGE_KEY = "uberpro_v2_html";
+
+    function load() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function save(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch {}
+    }
+
+    const saved = load();
+
+    const state = {
+      reward: saved.reward || "",
+      distance: saved.distance || "",
+      timeMin: saved.timeMin || "",
+      vehicleId: saved.vehicleId || "under125",
+      customFuel: saved.customFuel || "30",
+      gasPrice: saved.gasPrice || 175,
+      minWage: saved.minWage || 1000,
+      page: "main",
+      history: saved.history || []
+    };
+
+    const els = {
+      reward: document.getElementById("reward"),
+      distance: document.getElementById("distance"),
+      timeMin: document.getElementById("timeMin"),
+      customFuel: document.getElementById("customFuel"),
+      gasPriceRange: document.getElementById("gasPriceRange"),
+      minWageRange: document.getElementById("minWageRange"),
+      gasPriceVal: document.getElementById("gasPriceVal"),
+      minWageVal: document.getElementById("minWageVal"),
+      verdictWrap: document.getElementById("verdictWrap"),
+      verdictBadge: document.getElementById("verdictBadge"),
+      verdictIcon: document.getElementById("verdictIcon"),
+      hourlyValue: document.getElementById("hourlyValue"),
+      hourlySub: document.getElementById("hourlySub"),
+      profitValue: document.getElementById("profitValue"),
+      profitSub: document.getElementById("profitSub"),
+      alertsBox: document.getElementById("alertsBox"),
+      vehicleButtons: document.getElementById("vehicleButtons"),
+      customFuelWrap: document.getElementById("customFuelWrap"),
+      saveHistoryBtn: document.getElementById("saveHistoryBtn"),
+      shareBtn: document.getElementById("shareBtn"),
+      pageMain: document.getElementById("page-main"),
+      pageSettings: document.getElementById("page-settings"),
+      pageHistory: document.getElementById("page-history"),
+      headerHistory: document.getElementById("header-history"),
+      headerSettings: document.getElementById("header-settings"),
+      historyList: document.getElementById("historyList"),
+      clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+      tabBtns: document.querySelectorAll(".tab-btn")
+    };
+
+    function persist() {
+      save({
+        reward: state.reward,
+        distance: state.distance,
+        timeMin: state.timeMin,
+        vehicleId: state.vehicleId,
+        customFuel: state.customFuel,
+        gasPrice: state.gasPrice,
+        minWage: state.minWage,
+        history: state.history
+      });
+    }
+
+    function getVehicle() {
+      return VEHICLE_PRESETS.find(v => v.id === state.vehicleId);
+    }
+
+    function getFuel() {
+      const vehicle = getVehicle();
+      return state.vehicleId === "custom"
+        ? (parseFloat(state.customFuel) || 0)
+        : vehicle.fuel;
+    }
+
+    function calc() {
+      const reward = parseFloat(state.reward) || 0;
+      const distance = parseFloat(state.distance) || 0;
+      const mins = parseFloat(state.timeMin) || 0;
+      const fuel = getFuel();
+      const gasCost = fuel > 0 ? (distance / fuel) * state.gasPrice : 0;
+      const profit = reward - gasCost;
+      const hourly = mins > 0 ? (profit / mins) * 60 : null;
+      const canCalc = reward > 0 && distance > 0;
+      const verdict = !canCalc ? "—" : profit > 0 ? "GO" : "SKIP";
+      return { reward, distance, mins, fuel, gasCost, profit, hourly, canCalc, verdict };
+    }
+
+    function renderVehicles() {
+      els.vehicleButtons.innerHTML = "";
+      VEHICLE_PRESETS.forEach(v => {
+        const btn = document.createElement("button");
+        btn.className = "vehicle-btn" + (state.vehicleId === v.id ? " active" : "");
+        btn.innerHTML = `${v.icon} ${v.label}` + (
+          v.fuel !== null && v.fuel > 0 ? `<small>${v.fuel}km/L</small>` : ""
+        );
+        btn.onclick = () => {
+          state.vehicleId = v.id;
+          persist();
+          render();
+        };
+        els.vehicleButtons.appendChild(btn);
+      });
+
+      els.customFuelWrap.classList.toggle("hidden", state.vehicleId !== "custom");
+      els.customFuel.value = state.customFuel;
+    }
+
+    function renderAlerts(data) {
+      const alerts = [];
+      if (data.canCalc && data.hourly !== null && data.hourly < state.minWage) {
+        alerts.push(`時給 ¥${Math.round(data.hourly)} — 設定下限(¥${state.minWage})未満`);
+      }
+      if (data.distance > 5) {
+        alerts.push("長距離案件（5km超）— 効率注意");
+      }
+
+      els.alertsBox.innerHTML = "";
+      alerts.forEach(text => {
+        const div = document.createElement("div");
+        div.className = "alert";
+        div.innerHTML = `⚠️ ${text}`;
+        els.alertsBox.appendChild(div);
+      });
+    }
+
+    function renderVerdict(data) {
+      let color = "#888";
+      let bg = "none";
+      let icon = "⚫";
+
+      if (data.verdict === "GO") {
+        color = "#00e87a";
+        bg = "radial-gradient(ellipse at 50% 0%, rgba(0,232,122,.18) 0%, transparent 70%)";
+        icon = "🟢";
+      } else if (data.verdict === "SKIP") {
+        color = "#ff3d5a";
+        bg = "radial-gradient(ellipse at 50% 0%, rgba(255,61,90,.18) 0%, transparent 70%)";
+        icon = "🔴";
+      }
+
+      els.verdictWrap.style.background = bg;
+      els.verdictBadge.textContent = data.verdict;
+      els.verdictBadge.style.background = color;
+      els.verdictBadge.style.boxShadow = `0 0 60px ${color}55`;
+      els.verdictIcon.textContent = icon;
+    }
+
+    function renderStats(data) {
+      const hourlyColor = data.hourly === null ? "#888"
+        : data.hourly >= state.minWage ? "#00e87a"
+        : data.hourly >= 700 ? "#f5a623"
+        : "#ff3d5a";
+
+      const profitColor = data.profit >= 0 ? "#00e87a" : "#ff3d5a";
+
+      els.hourlyValue.textContent = data.hourly !== null ? `¥${Math.round(data.hourly)}` : "—";
+      els.hourlyValue.style.color = hourlyColor;
+      els.hourlySub.textContent = data.hourly !== null ? "/h" : "時間を入力";
+
+      els.profitValue.textContent = data.canCalc ? `¥${Math.round(data.profit)}` : "—";
+      els.profitValue.style.color = data.canCalc ? profitColor : "#888";
+      els.profitSub.textContent = data.canCalc ? `ガス代 -¥${Math.round(data.gasCost)}` : "数値を入力";
+
+      const canCalc = data.canCalc;
+      els.saveHistoryBtn.className = "primary-btn" + (canCalc ? "" : " disabled");
+      els.shareBtn.className = "x-btn" + (canCalc ? "" : " disabled");
+
+      if (canCalc) {
+        const shareText = `【UberProfit判定】\n${data.verdict === "GO" ? "🟢 GO!" : "🔴 SKIP"}\n利益: ¥${Math.round(data.profit)} / 時給: ${data.hourly ? "¥"+Math.round(data.hourly) : "—"}\n#UberEats #配達員 #UberProfit`;
+        els.shareBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+      } else {
+        els.shareBtn.href = "#";
+      }
+    }
+
+    function renderSettings() {
+      els.gasPriceRange.value = state.gasPrice;
+      els.minWageRange.value = state.minWage;
+      els.gasPriceVal.textContent = `¥${state.gasPrice}`;
+      els.minWageVal.textContent = `¥${state.minWage}`;
+    }
+
+    function renderHistory() {
+      els.historyList.innerHTML = "";
+
+      if (state.history.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "history-empty";
+        empty.textContent = "まだ記録がありません";
+        els.historyList.appendChild(empty);
+        els.clearHistoryBtn.classList.add("hidden");
+        return;
+      }
+
+      els.clearHistoryBtn.classList.remove("hidden");
+
+      state.history.forEach(h => {
+        const col = h.verdict === "GO" ? "#00e87a" : "#ff3d5a";
+        const item = document.createElement("div");
+        item.className = "history-item";
+        item.innerHTML = `
+          <div class="history-verdict" style="color:${col}; text-shadow:0 0 12px ${col}66;">${h.verdict}</div>
+          <div style="flex:1;">
+            <div class="history-profit" style="color:${col};">¥${h.profit}</div>
+            <div class="history-sub">
+              ${h.hourly ? `時給 ¥${h.hourly}/h · ` : ""}${h.dist}km · 報酬¥${h.reward}
+            </div>
+          </div>
+          <div class="history-right">
+            <div class="history-vehicle">${h.vehicle}</div>
+            <div class="history-time">${h.time}</div>
+          </div>
+        `;
+        els.historyList.appendChild(item);
+      });
+    }
+
+    function renderPage() {
+      els.pageMain.classList.toggle("hidden", state.page !== "main");
+      els.pageSettings.classList.toggle("hidden", state.page !== "settings");
+      els.pageHistory.classList.toggle("hidden", state.page !== "history");
+
+      els.headerHistory.classList.toggle("active", state.page === "history");
+      els.headerSettings.classList.toggle("active", state.page === "settings");
+
+      els.tabBtns.forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.page === state.page);
+      });
+    }
+
+    function render() {
+      els.reward.value = state.reward;
+      els.distance.value = state.distance;
+      els.timeMin.value = state.timeMin;
+      renderVehicles();
+      renderSettings();
+      renderHistory();
+      renderPage();
+
+      const data = calc();
+      renderVerdict(data);
+      renderStats(data);
+      renderAlerts(data);
+
+      persist();
+    }
+
+    function saveHistoryEntry() {
+      const data = calc();
+      if (!data.canCalc) return;
+
+      const vehicle = getVehicle();
+      const entry = {
+        id: Date.now(),
+        verdict: data.verdict,
+        reward: data.reward,
+        profit: Math.round(data.profit),
+        hourly: data.hourly ? Math.round(data.hourly) : null,
+        dist: data.distance,
+        vehicle: vehicle.icon,
+        time: new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+      };
+
+      state.history = [entry, ...state.history].slice(0, 30);
+      render();
+    }
+
+    function bind() {
+      els.reward.addEventListener("input", e => { state.reward = e.target.value; render(); });
+      els.distance.addEventListener("input", e => { state.distance = e.target.value; render(); });
+      els.timeMin.addEventListener("input", e => { state.timeMin = e.target.value; render(); });
+      els.customFuel.addEventListener("input", e => { state.customFuel = e.target.value; render(); });
+
+      els.gasPriceRange.addEventListener("input", e => {
+        state.gasPrice = Number(e.target.value);
+        render();
+      });
+
+      els.minWageRange.addEventListener("input", e => {
+        state.minWage = Number(e.target.value);
+        render();
+      });
+
+      els.saveHistoryBtn.addEventListener("click", saveHistoryEntry);
+
+      els.clearHistoryBtn.addEventListener("click", () => {
+        state.history = [];
+        render();
+      });
+
+      els.headerHistory.addEventListener("click", () => {
+        state.page = state.page === "history" ? "main" : "history";
+        render();
+      });
+
+      els.headerSettings.addEventListener("click", () => {
+        state.page = state.page === "settings" ? "main" : "settings";
+        render();
+      });
+
+      els.tabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.page = btn.dataset.page;
+          render();
+        });
+      });
+    }
+
+    bind();
+    render();
+  </script>
+</body>
+</html>
